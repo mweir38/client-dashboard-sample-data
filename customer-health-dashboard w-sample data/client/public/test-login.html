@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Login Test</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 600px;
+            margin: 50px auto;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            background: white;
+            padding: 30px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+        }
+        .form-group {
+            margin-bottom: 20px;
+        }
+        label {
+            display: block;
+            margin-bottom: 5px;
+            font-weight: bold;
+        }
+        input {
+            width: 100%;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            background: #007bff;
+            color: white;
+            padding: 12px 24px;
+            border: none;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 16px;
+        }
+        button:hover {
+            background: #0056b3;
+        }
+        .error {
+            color: red;
+            margin-top: 10px;
+        }
+        .success {
+            color: green;
+            margin-top: 10px;
+        }
+        .debug {
+            background: #f8f9fa;
+            border: 1px solid #dee2e6;
+            padding: 15px;
+            margin-top: 20px;
+            border-radius: 4px;
+            font-family: monospace;
+            font-size: 12px;
+            white-space: pre-wrap;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Login Test Page</h1>
+        <p>This page tests the login functionality directly.</p>
+        
+        <form id="loginForm">
+            <div class="form-group">
+                <label for="email">Email:</label>
+                <input type="email" id="email" name="email" value="admin@example.com" required>
+            </div>
+            
+            <div class="form-group">
+                <label for="password">Password:</label>
+                <input type="password" id="password" name="password" value="password123" required>
+            </div>
+            
+            <button type="submit">Test Login</button>
+        </form>
+        
+        <div id="result"></div>
+        <div id="debug" class="debug"></div>
+    </div>
+
+    <script>
+        const debugDiv = document.getElementById('debug');
+        const resultDiv = document.getElementById('result');
+        
+        function log(message) {
+            const timestamp = new Date().toLocaleTimeString();
+            debugDiv.textContent += `[${timestamp}] ${message}\n`;
+            console.log(`[${timestamp}] ${message}`);
+        }
+        
+        document.getElementById('loginForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const email = document.getElementById('email').value;
+            const password = document.getElementById('password').value;
+            
+            log('🔍 Starting login test...');
+            log(`Email: ${email}`);
+            log(`Password length: ${password.length}`);
+            
+            resultDiv.innerHTML = '<p>Testing login...</p>';
+            resultDiv.className = '';
+            
+            try {
+                log('Making API request to /api/auth/login...');
+                
+                const response = await fetch('http://localhost:5000/api/auth/login', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                log(`Response status: ${response.status}`);
+                log(`Response headers: ${JSON.stringify(Object.fromEntries(response.headers.entries()))}`);
+                
+                if (!response.ok) {
+                    const errorText = await response.text();
+                    log(`Error response: ${errorText}`);
+                    throw new Error(`HTTP ${response.status}: ${errorText}`);
+                }
+                
+                const data = await response.json();
+                log('✅ Login successful!');
+                log(`Token received: ${!!data.token}`);
+                log(`User role: ${data.user.role}`);
+                log(`User name: ${data.user.name}`);
+                
+                // Test localStorage
+                localStorage.setItem('token', data.token);
+                localStorage.setItem('user', JSON.stringify(data.user));
+                log('✅ Token stored in localStorage');
+                
+                resultDiv.innerHTML = `
+                    <div class="success">
+                        <h3>✅ Login Successful!</h3>
+                        <p><strong>User:</strong> ${data.user.name}</p>
+                        <p><strong>Role:</strong> ${data.user.role}</p>
+                        <p><strong>Token:</strong> ${data.token.substring(0, 20)}...</p>
+                        <p><strong>LocalStorage:</strong> Token and user data stored successfully</p>
+                    </div>
+                `;
+                resultDiv.className = 'success';
+                
+                // Test redirect
+                setTimeout(() => {
+                    log('Testing redirect...');
+                    if (data.user.role === 'admin') {
+                        window.location.href = '/admin';
+                    } else if (data.user.role === 'client') {
+                        window.location.href = '/client-dashboard';
+                    } else {
+                        window.location.href = '/dashboard';
+                    }
+                }, 2000);
+                
+            } catch (error) {
+                log(`❌ Login failed: ${error.message}`);
+                resultDiv.innerHTML = `
+                    <div class="error">
+                        <h3>❌ Login Failed</h3>
+                        <p><strong>Error:</strong> ${error.message}</p>
+                    </div>
+                `;
+                resultDiv.className = 'error';
+            }
+        });
+        
+        // Test backend connectivity
+        log('Testing backend connectivity...');
+        fetch('http://localhost:5000/api/auth/login', { method: 'OPTIONS' })
+            .then(response => {
+                log(`Backend connectivity test: ${response.status}`);
+            })
+            .catch(error => {
+                log(`Backend connectivity failed: ${error.message}`);
+            });
+    </script>
+</body>
+</html> 
